@@ -16,15 +16,15 @@
 </CyGuid_7d237b03-d944-11da-aaba-00164119d63b>
 </ProjectDocs>
 <OutputDocs>
-<CyGuid_7d237b03-d944-11da-aaba-00164119d63b type_name="CyGpif2Designer.Common.PrjMgmt.Model.CyPrjMgmtItem" name="cyfxgpif2config.h" persistent="C:\Users\ntan\workspace\SlaveFifoSyncNtan009\sourcesink.cydsn\cyfxgpif2config.h" target="7d237afd-d944-11da-aaba-00164119d63b">
+<CyGuid_7d237b03-d944-11da-aaba-00164119d63b type_name="CyGpif2Designer.Common.PrjMgmt.Model.CyPrjMgmtItem" name="cyfxgpif2config.h" persistent="C:\Users\cyj\git\SlaveFifoSyncNtan009\SlaveFifoSyncNtan009\sourcesink.cydsn\cyfxgpif2config.h" target="7d237afd-d944-11da-aaba-00164119d63b">
 <Hidden v="False" />
 </CyGuid_7d237b03-d944-11da-aaba-00164119d63b>
 </OutputDocs>
 </CyGuid_7d237b00-d944-11da-aaba-00164119d63b>
 <Settings>
 <Setting name="GPIF2_OutputName" value="cyfxgpif2config" />
-<Setting name="GPIF2_OutputLocation" value="C:\Users\ntan\workspace\SlaveFifoSyncNtan009\sourcesink.cydsn" />
-<Setting name="GPIF2_Template" value="C:\Cypress\EZ-USB FX3 SDK\1.1\inputs\outputtemplates\cygpif2cheadertemplate.tpl" />
+<Setting name="GPIF2_OutputLocation" value="C:\Users\cyj\git\SlaveFifoSyncNtan009\SlaveFifoSyncNtan009\sourcesink.cydsn" />
+<Setting name="GPIF2_Template" value="C:\Cypress\EZ-USB FX3 SDK\1.1.1\inputs\outputtemplates\cygpif2cheadertemplate.tpl" />
 </Settings>
 </CyGuid_7d237aff-d944-11da-aaba-00164119d63b>
 </CyXmlSerializer>

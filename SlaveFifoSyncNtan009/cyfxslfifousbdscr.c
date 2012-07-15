@@ -21,14 +21,21 @@
 */
 
 /* This file contains the USB enumeration descriptors for the slave FIFO application example.
- * The descriptor arrays must be 32 byte aligned if the D-cache is turned on. If the linker
- * used is not capable of supporting the aligned feature for this, then dynamically allocated
- * buffer must be used, and the descriptor must be loaded into it. */
+ * The descriptor arrays must be 32 byte aligned and multiple of 32 bytes if the D-cache is
+ * turned on. If the linker used is not capable of supporting the aligned feature for this,
+ * either the descriptors must be placed in a different section and the section should be 
+ * 32 byte aligned and 32 byte multiple; or dynamically allocated buffer allocated using
+ * CyU3PDmaBufferAlloc must be used, and the descriptor must be loaded into it. The example
+ * assumes that the aligned attribute for 32 bytes is supported by the linker. Do not add
+ * any other variables to this file other than USB descriptors. This is not the only
+ * pre-requisite to enabling the D-cache. Refer to the documentation for
+ * CyU3PDeviceCacheControl for more information.
+ */
 
 #include "cyfxslfifosync.h"
 
 /* Standard device descriptor for USB 3.0 */
-const uint8_t CyFxUSB30DeviceDscr[] =
+const uint8_t CyFxUSB30DeviceDscr[] __attribute__ ((aligned (32))) =
 {
     0x12,                           /* Descriptor size */
     CY_U3P_USB_DEVICE_DESCR,        /* Device descriptor type */
@@ -47,11 +54,11 @@ const uint8_t CyFxUSB30DeviceDscr[] =
 };
 
 /* Standard device descriptor for USB 2.0 */
-const uint8_t CyFxUSB20DeviceDscr[] =
+const uint8_t CyFxUSB20DeviceDscr[] __attribute__ ((aligned (32))) =
 {
     0x12,                           /* Descriptor size */
     CY_U3P_USB_DEVICE_DESCR,        /* Device descriptor type */
-    0x00,0x02,                      /* USB 2.0 */
+    0x10,0x02,                      /* USB 2.10 */
     0x00,                           /* Device class */
     0x00,                           /* Device sub-class */
     0x00,                           /* Device protocol */
@@ -66,7 +73,7 @@ const uint8_t CyFxUSB20DeviceDscr[] =
 };
 
 /* Binary device object store descriptor */
-const uint8_t CyFxUSBBOSDscr[] =
+const uint8_t CyFxUSBBOSDscr[] __attribute__ ((aligned (32))) =
 {
     0x05,                           /* Descriptor size */
     CY_U3P_BOS_DESCR,               /* Device descriptor type */
@@ -77,7 +84,7 @@ const uint8_t CyFxUSBBOSDscr[] =
     0x07,                           /* Descriptor size */
     CY_U3P_DEVICE_CAPB_DESCR,       /* Device capability type descriptor */
     CY_U3P_USB2_EXTN_CAPB_TYPE,     /* USB 2.0 extension capability type */
-    0x00,0x00,0x00,0x00,            /* Supported device level features  */
+    0x02,0x00,0x00,0x00,            /* Supported device level features: LPM support  */
 
     /* SuperSpeed device capability */
     0x0A,                           /* Descriptor size */
@@ -91,7 +98,7 @@ const uint8_t CyFxUSBBOSDscr[] =
 };
 
 /* Standard device qualifier descriptor */
-const uint8_t CyFxUSBDeviceQualDscr[] =
+const uint8_t CyFxUSBDeviceQualDscr[] __attribute__ ((aligned (32))) =
 {
     0x0A,                           /* Descriptor size */
     CY_U3P_USB_DEVQUAL_DESCR,       /* Device qualifier descriptor type */
@@ -105,7 +112,7 @@ const uint8_t CyFxUSBDeviceQualDscr[] =
 };
 
 /* Standard super speed configuration descriptor */
-const uint8_t CyFxUSBSSConfigDscr[] =
+const uint8_t CyFxUSBSSConfigDscr[] __attribute__ ((aligned (32))) =
 {
     /* Configuration descriptor */
     0x09,                           /* Descriptor size */
@@ -114,7 +121,7 @@ const uint8_t CyFxUSBSSConfigDscr[] =
     0x01,                           /* Number of interfaces */
     0x01,                           /* Configuration number */
     0x00,                           /* COnfiguration string index */
-    0x00,                           /* Config characteristics - D6: Self power; D5: Remote wakeup */
+    0x80,                           /* Config characteristics - Bus powered */
     0x32,                           /* Max power consumption of device (in 8mA unit) : 400mA */
 
     /* Interface descriptor */
@@ -142,7 +149,7 @@ const uint8_t CyFxUSBSSConfigDscr[] =
     0x00,                           /* Max no. of packets in a burst : 0: burst 1 packet at a time */
     0x00,                           /* Max streams for bulk EP = 0 (No streams) */
     0x00,0x00,                      /* Service interval for the EP : 0 for bulk */
-    
+
     /* Endpoint descriptor for consumer EP */
     0x07,                           /* Descriptor size */
     CY_U3P_USB_ENDPNT_DESCR,        /* Endpoint descriptor type */
@@ -172,12 +179,10 @@ const uint8_t CyFxUSBSSConfigDscr[] =
     0x07,                           /* Max no. of packets in a burst : 7: burst 8 packets at a time */
     0x00,                           /* Max streams for bulk EP = 0 (No streams) */
     0x00,0x00                       /* Service interval for the EP : 0 for bulk */
-    
-    
 };
 
 /* Standard high speed configuration descriptor */
-const uint8_t CyFxUSBHSConfigDscr[] =
+const uint8_t CyFxUSBHSConfigDscr[] __attribute__ ((aligned (32))) =
 {
     /* Configuration descriptor */
     0x09,                           /* Descriptor size */
@@ -226,7 +231,7 @@ const uint8_t CyFxUSBHSConfigDscr[] =
 };
 
 /* Standard full speed configuration descriptor */
-const uint8_t CyFxUSBFSConfigDscr[] =
+const uint8_t CyFxUSBFSConfigDscr[] __attribute__ ((aligned (32))) =
 {
     /* Configuration descriptor */
     0x09,                           /* Descriptor size */
@@ -275,7 +280,7 @@ const uint8_t CyFxUSBFSConfigDscr[] =
 };
 
 /* Standard language ID string descriptor */
-const uint8_t CyFxUSBStringLangIDDscr[] =
+const uint8_t CyFxUSBStringLangIDDscr[] __attribute__ ((aligned (32))) =
 {
     0x04,                           /* Descriptor size */
     CY_U3P_USB_STRING_DESCR,        /* Device descriptor type */
@@ -283,7 +288,7 @@ const uint8_t CyFxUSBStringLangIDDscr[] =
 };
 
 /* Standard manufacturer string descriptor */
-const uint8_t CyFxUSBManufactureDscr[] =
+const uint8_t CyFxUSBManufactureDscr[] __attribute__ ((aligned (32))) =
 {
     0x10,                           /* Descriptor size */
     CY_U3P_USB_STRING_DESCR,        /* Device descriptor type */
@@ -297,7 +302,7 @@ const uint8_t CyFxUSBManufactureDscr[] =
 };
 
 /* Standard product string descriptor */
-const uint8_t CyFxUSBProductDscr[] =
+const uint8_t CyFxUSBProductDscr[] __attribute__ ((aligned (32))) =
 {
     0x08,                           /* Descriptor size */
     CY_U3P_USB_STRING_DESCR,        /* Device descriptor type */
@@ -305,6 +310,11 @@ const uint8_t CyFxUSBProductDscr[] =
     'X',0x00,
     '3',0x00
 };
+
+/* Place this buffer as the last buffer so that no other variable / code shares
+ * the same cache line. Do not add any other variables / arrays in this file.
+ * This will lead to variables sharing the same cache line. */
+const uint8_t CyFxUsbDscrAlignBuffer[32] __attribute__ ((aligned (32)));
 
 /* [ ] */
 

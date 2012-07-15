@@ -289,7 +289,8 @@ CyFxSlFifoApplnStart (
     }
     
     /* Consumer endpoint configuration for data*/
-    epCfg.burstLen = 8;
+    epCfg.burstLen = (usbSpeed == CY_U3P_SUPER_SPEED) ?
+        (CY_FX_EP_BURST_LENGTH) : 1;
     epCfg.streams = 0;
     epCfg.pcktSize = size;
     apiRetStatus = CyU3PSetEpConfig(CY_FX_EP_CONSUMER2, &epCfg);
@@ -301,6 +302,7 @@ CyFxSlFifoApplnStart (
     
 	/* Initialization for command request pipe */
     /* Create a DMA MANUAL channel for U2P transfer. */
+    CyU3PMemSet ((uint8_t *)&dmaCfg, 0, sizeof (dmaCfg));
     /* DMA size is set based on the USB speed. */
     dmaCfg.size  = size;
     dmaCfg.count = CY_FX_SLFIFO_DMA_BUF_COUNT;
@@ -324,6 +326,7 @@ CyFxSlFifoApplnStart (
 
 	/* Initialization for command status pipe */
     /* Create a DMA MANUAL channel for P2U transfer. */
+    CyU3PMemSet ((uint8_t *)&dmaCfg, 0, sizeof (dmaCfg));
     dmaCfg.size  = size;
     dmaCfg.count = CY_FX_SLFIFO_DMA_BUF_COUNT;
     dmaCfg.prodSckId = CY_FX_PRODUCER_PPORT_SOCKET;
@@ -346,7 +349,17 @@ CyFxSlFifoApplnStart (
     
 	/* Initialization for data pipe */
     /* Create a DMA MANUAL channel for P2U transfer. */
-    dmaCfg.size  = size*16;
+    CyU3PMemSet ((uint8_t *)&dmaCfg, 0, sizeof (dmaCfg));
+    /* The buffer size will be same as packet size for the
+     * full speed, high speed and super speed non-burst modes.
+     * For super speed burst mode of operation, the buffers will be
+     * 1024 * burst length so that a full burst can be completed.
+     * This will mean that a buffer will be available only after it
+     * has been filled or when a short packet is received. */
+    dmaCfg.size  = (size * CY_FX_EP_BURST_LENGTH);
+    /* Multiply the buffer size with the multiplier
+     * for performance improvement. */
+    dmaCfg.size *= CY_FX_DMA_SIZE_MULTIPLIER;
     dmaCfg.count = CY_FX_SLFIFO_DMA_BUF_COUNT;
     dmaCfg.prodSckId = CY_FX_PRODUCER2_PPORT_SOCKET;
     dmaCfg.consSckId = CY_FX_CONSUMER2_USB_SOCKET;

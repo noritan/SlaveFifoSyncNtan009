@@ -36,7 +36,8 @@
 #define CY_FX_SLFIFO_GPIF_16_32BIT_CONF_SELECT (1)
 
 #define CY_FX_SLFIFO_DMA_BUF_COUNT      (2)                       /* Slave FIFO channel buffer count */
-#define CY_FX_SLFIFO_DMA_TX_SIZE	    (0)	                  /* DMA transfer size is set to infinite */
+#define CY_FX_SLFIFO_DMA_TX_SIZE        (0)	                  /* DMA transfer size is set to infinite */
+#define CY_FX_SLFIFO_DMA_RX_SIZE        (0)	                  /* DMA transfer size is set to infinite */
 #define CY_FX_SLFIFO_THREAD_STACK       (0x0400)                  /* Slave FIFO application thread stack size */
 #define CY_FX_SLFIFO_THREAD_PRIORITY    (8)                       /* Slave FIFO application thread priority */
 
@@ -64,6 +65,17 @@
 #define CY_FX_PRODUCER_PPORT_SOCKET    CY_U3P_PIB_SOCKET_1    /* P-port Socket 1 is command status producer */
 #define CY_FX_PRODUCER2_PPORT_SOCKET   CY_U3P_PIB_SOCKET_0    /* P-port Socket 0 is data producer */
 #define CY_FX_CONSUMER_PPORT_SOCKET    CY_U3P_PIB_SOCKET_3    /* P-port Socket 3 is command request consumer */
+
+/* Burst mode definitions: Only for super speed operation. The maximum burst mode
+ * supported is limited by the USB hosts available. The maximum value for this is 16
+ * and the minimum (no-burst) is 1. */
+
+#define CY_FX_EP_BURST_LENGTH          (8)      /* Burst length in packets. The buffer size is allocated
+                                                   to max packet size * burst length for all USB speeds
+                                                   but the bursting is done only for USB SS speeds. */
+#define CY_FX_DMA_SIZE_MULTIPLIER      (2)      /* DMA buffer size multiplier. This is applied for all
+                                                   USB speeds. The DMA buffer size allocated is
+                                                   max packet size * burst length * multiplier. */
 
 /* Extern definitions for the USB Descriptors */
 extern const uint8_t CyFxUSB20DeviceDscr[];
