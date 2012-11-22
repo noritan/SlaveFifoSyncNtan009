@@ -233,6 +233,7 @@ CyFxSlFifoApplnStart (
         void)
 {
     uint16_t size = 0;
+    uint16_t burstLen = 1;
     CyU3PEpConfig_t epCfg;
     CyU3PDmaChannelConfig_t dmaCfg;
     CyU3PReturnStatus_t apiRetStatus = CY_U3P_SUCCESS;
@@ -246,14 +247,17 @@ CyFxSlFifoApplnStart (
     {
         case CY_U3P_FULL_SPEED:
             size = 64;
+            burstLen = 1;
             break;
 
         case CY_U3P_HIGH_SPEED:
             size = 512;
+            burstLen = 1;
             break;
 
         case  CY_U3P_SUPER_SPEED:
             size = 1024;
+            burstLen = CY_FX_EP_BURST_LENGTH;
             break;
 
         default:
@@ -289,8 +293,7 @@ CyFxSlFifoApplnStart (
     }
     
     /* Consumer endpoint configuration for data*/
-    epCfg.burstLen = (usbSpeed == CY_U3P_SUPER_SPEED) ?
-        (CY_FX_EP_BURST_LENGTH) : 1;
+    epCfg.burstLen = burstLen;
     epCfg.streams = 0;
     epCfg.pcktSize = size;
     apiRetStatus = CyU3PSetEpConfig(CY_FX_EP_CONSUMER2, &epCfg);
@@ -309,6 +312,7 @@ CyFxSlFifoApplnStart (
     dmaCfg.prodSckId = CY_FX_PRODUCER_USB_SOCKET;
     dmaCfg.consSckId = CY_FX_CONSUMER_PPORT_SOCKET;
     dmaCfg.dmaMode = CY_U3P_DMA_MODE_BYTE;
+    /* Enabling the callback for produce event. */
     dmaCfg.notification = CY_U3P_DMA_CB_PROD_EVENT;
     dmaCfg.cb = CyFxSlFifoUtoPDmaCallback;
     dmaCfg.prodHeader = 0;
@@ -332,6 +336,7 @@ CyFxSlFifoApplnStart (
     dmaCfg.prodSckId = CY_FX_PRODUCER_PPORT_SOCKET;
     dmaCfg.consSckId = CY_FX_CONSUMER_USB_SOCKET;
     dmaCfg.dmaMode = CY_U3P_DMA_MODE_BYTE;
+    /* Enabling the callback for consume event. */
     dmaCfg.notification = CY_U3P_DMA_CB_PROD_EVENT;
     dmaCfg.cb = CyFxSlFifoPtoUDmaCallback;
     dmaCfg.prodHeader = 0;
@@ -356,7 +361,7 @@ CyFxSlFifoApplnStart (
      * 1024 * burst length so that a full burst can be completed.
      * This will mean that a buffer will be available only after it
      * has been filled or when a short packet is received. */
-    dmaCfg.size  = (size * CY_FX_EP_BURST_LENGTH);
+    dmaCfg.size  = size * burstLen;
     /* Multiply the buffer size with the multiplier
      * for performance improvement. */
     dmaCfg.size *= CY_FX_DMA_SIZE_MULTIPLIER;
@@ -467,10 +472,85 @@ CyFxSlFifoApplnUSBSetupCB (
         uint32_t setupdat1
     )
 {
-    /* Fast enumeration is used. Only class, vendor and unknown requests
-     * are received by this function. These are not handled in this
-     * application. Hence return CyFalse. */
-    return CyFalse;
+    /* Fast enumeration is used. Only requests addressed to the interface, class,
+     * vendor and unknown control requests are received by this function.
+     * This application does not support any class or vendor requests. */
+
+    uint8_t  bRequest, bReqType;
+    uint8_t  bType, bTarget;
+    uint16_t wValue, wIndex;
+    CyBool_t isHandled = CyFalse;
+
+    /* Decode the fields from the setup request. */
+    bReqType = (setupdat0 & CY_U3P_USB_REQUEST_TYPE_MASK);
+    bType    = (bReqType & CY_U3P_USB_TYPE_MASK);
+    bTarget  = (bReqType & CY_U3P_USB_TARGET_MASK);
+    bRequest = ((setupdat0 & CY_U3P_USB_REQUEST_MASK) >> CY_U3P_USB_REQUEST_POS);
+    wValue   = ((setupdat0 & CY_U3P_USB_VALUE_MASK)   >> CY_U3P_USB_VALUE_POS);
+    wIndex   = ((setupdat1 & CY_U3P_USB_INDEX_MASK)   >> CY_U3P_USB_INDEX_POS);
+
+    if (bType == CY_U3P_USB_STANDARD_RQT)
+    {
+        /* Handle SET_FEATURE(FUNCTION_SUSPEND) and CLEAR_FEATURE(FUNCTION_SUSPEND)
+         * requests here. It should be allowed to pass if the device is in configured
+         * state and failed otherwise. */
+        if ((bTarget == CY_U3P_USB_TARGET_INTF) && ((bRequest == CY_U3P_USB_SC_SET_FEATURE)
+                    || (bRequest == CY_U3P_USB_SC_CLEAR_FEATURE)) && (wValue == 0))
+        {
+            if (glIsApplnActive)
+                CyU3PUsbAckSetup ();
+            else
+                CyU3PUsbStall (0, CyTrue, CyFalse);
+
+            isHandled = CyTrue;
+        }
+
+        /* CLEAR_FEATURE request for endpoint is always passed to the setup callback
+         * regardless of the enumeration model used. When a clear feature is received,
+         * the previous transfer has to be flushed and cleaned up. This is done at the
+         * protocol level. Since this is just a loopback operation, there is no higher
+         * level protocol. So flush the EP memory and reset the DMA channel associated
+         * with it. If there are more than one EP associated with the channel reset both
+         * the EPs. The endpoint stall and toggle / sequence number is also expected to be
+         * reset. Return CyFalse to make the library clear the stall and reset the endpoint
+         * toggle. Or invoke the CyU3PUsbStall (ep, CyFalse, CyTrue) and return CyTrue.
+         * Here we are clearing the stall. */
+        if ((bTarget == CY_U3P_USB_TARGET_ENDPT) && (bRequest == CY_U3P_USB_SC_CLEAR_FEATURE)
+                && (wValue == CY_U3P_USBX_FS_EP_HALT))
+        {
+            if (glIsApplnActive)
+            {
+                if (wIndex == CY_FX_EP_PRODUCER)
+                {
+                    CyU3PDmaChannelReset (&glChHandleSlFifoUtoP);
+                    CyU3PUsbFlushEp(CY_FX_EP_PRODUCER);
+                    CyU3PUsbResetEp (CY_FX_EP_PRODUCER);
+                    CyU3PDmaChannelSetXfer (&glChHandleSlFifoUtoP, CY_FX_SLFIFO_DMA_TX_SIZE);
+                }
+
+                if (wIndex == CY_FX_EP_CONSUMER)
+                {
+                    CyU3PDmaChannelReset (&glChHandleSlFifoPtoU);
+                    CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+                    CyU3PUsbResetEp (CY_FX_EP_CONSUMER);
+                    CyU3PDmaChannelSetXfer (&glChHandleSlFifoPtoU, CY_FX_SLFIFO_DMA_RX_SIZE);
+                }
+
+                if (wIndex == CY_FX_EP_CONSUMER2)
+                {
+                    CyU3PDmaChannelReset (&glChHandleSlFifoPtoU2);
+                    CyU3PUsbFlushEp(CY_FX_EP_CONSUMER2);
+                    CyU3PUsbResetEp (CY_FX_EP_CONSUMER2);
+                    CyU3PDmaChannelSetXfer (&glChHandleSlFifoPtoU2, CY_FX_SLFIFO_DMA_RX_SIZE);
+                }
+
+                CyU3PUsbStall (wIndex, CyFalse, CyTrue);
+                isHandled = CyTrue;
+            }
+        }
+    }
+
+    return isHandled;
 }
 
 /* This is the callback function to handle the USB events. */
@@ -504,6 +584,21 @@ CyFxSlFifoApplnUSBEventCB (
         default:
             break;
     }
+}
+
+/* Callback function to handle LPM requests from the USB 3.0 host. This function is invoked by the API
+   whenever a state change from U0 -> U1 or U0 -> U2 happens. If we return CyTrue from this function, the
+   FX3 device is retained in the low power state. If we return CyFalse, the FX3 device immediately tries
+   to trigger an exit back to U0.
+
+   This application does not have any state in which we should not allow U1/U2 transitions; and therefore
+   the function always return CyTrue.
+ */
+CyBool_t
+CyFxApplnLPMRqtCB (
+        CyU3PUsbLinkPowerMode link_mode)
+{
+    return CyTrue;
 }
 
 /* This function initializes the GPIF interface and initializes
@@ -558,6 +653,9 @@ CyFxSlFifoApplnInit (void)
 
     /* Setup the callback to handle the USB events. */
     CyU3PUsbRegisterEventCallback(CyFxSlFifoApplnUSBEventCB);
+
+    /* Register a callback to handle LPM requests from the USB 3.0 host. */
+    CyU3PUsbRegisterLPMRequestCallback(CyFxApplnLPMRqtCB);    
 
     /* Set the USB Enumeration descriptors */
 
@@ -667,8 +765,8 @@ SlFifoAppThread_Entry (
         if (glIsApplnActive)
         {
             /* Print the number of buffers received so far from the USB host. */
-            CyU3PDebugPrint (6, "Data tracker: buffers received: %d, buffers sent: %d.\n",
-                    glDMARxCount, glDMATxCount);
+            CyU3PDebugPrint (6, "Data tracker: REQ: %d, STAT: %d, DATA: %d.\n",
+                    glDMARxCount, glDMATxCount, glDMATx2Count);
         }
     }
 }
@@ -716,22 +814,25 @@ CyFxApplicationDefine (
 int
 main (void)
 {
+    CyU3PSysClockConfig_t clockConfig;
     CyU3PIoMatrixConfig_t io_cfg;
     CyU3PReturnStatus_t status = CY_U3P_SUCCESS;
 
     /* Initialize the device */
-    status = CyU3PDeviceInit (NULL);
+    clockConfig.setSysClk400  = CyTrue;
+    clockConfig.cpuClkDiv     = 2;
+    clockConfig.dmaClkDiv     = 2;
+    clockConfig.mmioClkDiv    = 2;
+    clockConfig.useStandbyClk = CyFalse;
+    clockConfig.clkSrc         = CY_U3P_SYS_CLK;
+    status = CyU3PDeviceInit (&clockConfig);
     if (status != CY_U3P_SUCCESS)
     {
         goto handle_fatal_error;
     }
 
-    /* Initialize the caches. Enable instruction cache and keep data cache disabled.
-     * The data cache is useful only when there is a large amount of CPU based memory
-     * accesses. When used in simple cases, it can decrease performance due to large 
-     * number of cache flushes and cleans and also it adds to the complexity of the
-     * code. */
-    status = CyU3PDeviceCacheControl (CyTrue, CyFalse, CyFalse);
+    /* Initialize the caches. Enable both Instruction and Data Caches. */
+    status = CyU3PDeviceCacheControl (CyTrue, CyTrue, CyTrue);
     if (status != CY_U3P_SUCCESS)
     {
         goto handle_fatal_error;
